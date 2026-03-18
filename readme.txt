@@ -1,5 +1,5 @@
 === OP3 Podcast Analytics ===
-Contributors: mterronbote
+Contributors: materron
 Tags: podcast, analytics, statistics, op3, feed
 Requires at least: 6.3
 Tested up to: 6.9
