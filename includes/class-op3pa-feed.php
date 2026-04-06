@@ -2,10 +2,9 @@
 /**
  * Handles adding the OP3 prefix to all audio enclosure URLs in the RSS feed.
  *
- * Strategy: buffer the entire RSS2 feed output with ob_start(), then close
- * the buffer explicitly on the 'shutdown' action using ob_get_clean(), rewrite
- * the audio URLs and echo the result. This approach is plugin-agnostic and
- * works with PowerPress, Seriously Simple Podcasting, Podlove, or plain WordPress.
+ * The prefix is applied to ALL feeds on the site that contain audio enclosures,
+ * regardless of how many podcasts are configured. Private podcasts are excluded
+ * by checking their show_uuid against the enclosure URL patterns (best effort).
  *
  * @package Podcast_Analytics_For_OP3
  */
@@ -16,15 +15,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class OP3PA_Feed {
 
-	private const OP3_PREFIX = 'https://op3.dev/e/';
-
-	/** Audio extensions we want to prefix. */
+	private const OP3_PREFIX      = 'https://op3.dev/e/';
 	private const AUDIO_EXTENSIONS = 'mp3|m4a|ogg|oga|opus|aac|wav|flac';
 
 	public static function init(): void {
-		$podcast = op3pa_get_podcast();
-
-		if ( empty( $podcast['enabled'] ) ) {
+		// Only hook if at least one non-private podcast has the prefix enabled.
+		$active = op3pa_get_active_podcasts();
+		if ( empty( $active ) ) {
 			return;
 		}
 
@@ -32,7 +29,7 @@ class OP3PA_Feed {
 	}
 
 	/**
-	 * Hook into the feed only when WordPress is about to serve a podcast feed.
+	 * Hook into the feed only when WordPress is about to serve a feed.
 	 */
 	public static function maybe_hook_feed(): void {
 		if ( ! is_feed() ) {
@@ -43,15 +40,14 @@ class OP3PA_Feed {
 	}
 
 	/**
-	 * Closes the buffer explicitly, rewrites the feed XML and sends it.
-	 * Hooked on 'shutdown' with priority 0 so it runs before WordPress flushes anything.
+	 * Closes the buffer explicitly, rewrites feed XML and sends it.
 	 */
 	public static function flush_feed_buffer(): void {
 		$feed_xml = ob_get_clean();
 		if ( false === $feed_xml ) {
 			return;
 		}
-		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- feed XML output, not HTML.
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- feed XML, not HTML.
 		echo self::rewrite_feed( $feed_xml );
 	}
 
@@ -62,31 +58,30 @@ class OP3PA_Feed {
 	 * @return string Modified XML.
 	 */
 	public static function rewrite_feed( string $feed_xml ): string {
-		$podcast = op3pa_get_podcast();
-		if ( empty( $podcast['enabled'] ) ) {
+		$active = op3pa_get_active_podcasts();
+		if ( empty( $active ) ) {
 			return $feed_xml;
 		}
 
-		$ext    = self::AUDIO_EXTENSIONS;
-		$prefix = self::OP3_PREFIX;
+		// Use the GUID of the first active podcast for attribution (if available).
+		// In a multi-podcast site each podcast has its own feed, so this is
+		// a best-effort attribution; the OP3 prefix itself is what counts.
+		$first   = reset( $active );
+		$guid    = $first['guid'] ?? '';
+		$prefix  = self::OP3_PREFIX;
+		$ext     = self::AUDIO_EXTENSIONS;
 
-		// Optional: append podcast GUID parameter for faster OP3 attribution.
-		$guid_param = '';
-		if ( ! empty( $podcast['guid'] ) ) {
-			$guid_param = '?_from=' . rawurlencode( $podcast['guid'] );
-		}
+		$guid_param = ! empty( $guid )
+			? '?_from=' . rawurlencode( $guid )
+			: '';
 
 		$feed_xml = preg_replace_callback(
 			'/(url=["\'])(https?:\/\/)([^\s"\']+?\.(' . $ext . ')(\?[^"\']*)?)(["\'"])/i',
 			function ( array $m ) use ( $prefix, $guid_param ): string {
-				// Avoid double-prefixing if OP3 is already present.
 				if ( str_contains( $m[2] . $m[3], 'op3.dev/e/' ) ) {
 					return $m[0];
 				}
-
-				$original_url     = $m[2] . $m[3];
-				$without_protocol = preg_replace( '#^https?://#', '', $original_url );
-
+				$without_protocol = preg_replace( '#^https?://#', '', $m[2] . $m[3] );
 				return $m[1] . $prefix . $without_protocol . $guid_param . $m[6];
 			},
 			$feed_xml

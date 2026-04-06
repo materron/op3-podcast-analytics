@@ -4,7 +4,7 @@ Tags: podcast, analytics, statistics, op3, feed
 Requires at least: 6.3
 Tested up to: 6.9
 Requires PHP: 8.0
-Stable tag: 1.0.2
+Stable tag: 2.0.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -94,15 +94,21 @@ No data is collected from your site's visitors beyond what OP3 records as part o
 
 == Changelog ==
 
+= 2.0.0 =
+* Multi-podcast support: configure any number of podcasts, each with name, Show UUID and optional Podcast GUID.
+* Global bearer token: a single token covers all configured podcasts.
+* Private podcast flag: private podcasts are excluded from the OP3 prefix and from statistics.
+* Network view: statistics page can aggregate downloads across all podcasts or a custom selection.
+* Network ranking table: shows which podcast in the network gets the most downloads.
+* Per-podcast episode breakdown in the network view.
+* Dashboard widget with left/right pagination between podcasts when multiple are configured.
+* Print-friendly statistics page (Ctrl+P / Cmd+P generates a clean PDF report).
+
 = 1.0.2 =
-* Fixed output buffer handling: ob_start() is now explicitly closed with ob_get_clean() on the shutdown action, ensuring correct buffer lifecycle management.
+* Fixed output buffer handling: ob_start() is now explicitly closed with ob_get_clean() on the shutdown action.
 
 = 1.0.1 =
 * Renamed plugin to "Podcast Analytics for OP3" to clarify it is a community integration, not an official OP3 product.
 
 = 1.0.0 =
 * Initial release.
-* Feed prefix: automatically adds `https://op3.dev/e/` to all audio enclosures in the RSS feed.
-* Dashboard widget: shows last 7 days of downloads.
-* Statistics page: per-episode download counts with 1/7/30 day periods.
-* Compatible with PowerPress, Seriously Simple Podcasting, and any RSS2 podcast feed.

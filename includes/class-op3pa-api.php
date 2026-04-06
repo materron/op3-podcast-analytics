@@ -16,7 +16,7 @@ class OP3PA_Api {
 	private const TIMEOUT   = 15;
 
 	/**
-	 * Fetches download counts for the configured show grouped by episode.
+	 * Fetches download counts for a single show, grouped by episode.
 	 *
 	 * @param int $days      1, 7, or 30.
 	 * @param int $podcast_i Podcast index.
@@ -34,10 +34,9 @@ class OP3PA_Api {
 			return $cached;
 		}
 
-		$start = '-' . $days . 'd';
-		$url   = add_query_arg(
+		$url = add_query_arg(
 			[
-				'start'  => $start,
+				'start'  => '-' . $days . 'd',
 				'limit'  => 1000,
 				'format' => 'json',
 				'bots'   => 'exclude',
@@ -45,14 +44,126 @@ class OP3PA_Api {
 			self::API_BASE . 'downloads/show/' . rawurlencode( $podcast['show_uuid'] )
 		);
 
-		$response = self::request( $url, $podcast );
+		$response = self::request( $url );
 		if ( is_wp_error( $response ) ) {
 			return $response;
 		}
 
-		// Aggregate raw download rows by episode URL.
+		$normalised = self::normalise_rows( $response['rows'] ?? [] );
+		set_transient( $cache_key, $normalised, self::CACHE_TTL );
+		return $normalised;
+	}
+
+	/**
+	 * Fetches and aggregates download counts across multiple shows (network view).
+	 *
+	 * @param int   $days    1, 7, or 30.
+	 * @param array $indexes Podcast indexes to include. Empty = all active.
+	 * @return array|WP_Error Array with 'rows' (per show totals) and 'total'.
+	 */
+	public static function get_network_counts( int $days = 30, array $indexes = [] ): array|WP_Error {
+		$active = op3pa_get_active_podcasts();
+		if ( empty( $active ) ) {
+			return new WP_Error( 'op3pa_no_podcasts', __( 'No active podcasts configured.', 'podcast-analytics-for-op3' ) );
+		}
+
+		if ( ! empty( $indexes ) ) {
+			$active = array_intersect_key( $active, array_flip( $indexes ) );
+		}
+
+		$sort_key  = implode( '-', array_keys( $active ) );
+		$cache_key = 'op3pa_network_' . $days . 'd_' . md5( $sort_key );
+		$cached    = get_transient( $cache_key );
+		if ( false !== $cached ) {
+			return $cached;
+		}
+
+		$rows  = [];
+		$total = 0;
+
+		foreach ( $active as $i => $podcast ) {
+			$result = self::get_download_counts( $days, $i );
+			if ( is_wp_error( $result ) ) {
+				continue;
+			}
+			$show_total = array_sum( array_column( $result['rows'], 'downloads' ) );
+			$total     += $show_total;
+			$rows[]     = [
+				'index'     => $i,
+				'name'      => $podcast['name'] ?: sprintf(
+					/* translators: %d: podcast number */
+					__( 'Podcast %d', 'podcast-analytics-for-op3' ),
+					$i + 1
+				),
+				'show_uuid' => $podcast['show_uuid'],
+				'downloads' => $show_total,
+				'episodes'  => $result['rows'],
+			];
+		}
+
+		usort( $rows, fn( $a, $b ) => $b['downloads'] <=> $a['downloads'] );
+
+		$result = compact( 'rows', 'total' );
+		set_transient( $cache_key, $result, self::CACHE_TTL );
+		return $result;
+	}
+
+	/**
+	 * Returns the OP3 public stats page URL for a given podcast index.
+	 *
+	 * @param int $podcast_i Podcast index.
+	 * @return string
+	 */
+	public static function get_stats_page_url( int $podcast_i = 0 ): string {
+		$podcast = op3pa_get_podcast( $podcast_i );
+		if ( empty( $podcast['show_uuid'] ) ) {
+			return 'https://op3.dev';
+		}
+		return 'https://op3.dev/show/' . rawurlencode( $podcast['show_uuid'] );
+	}
+
+	/**
+	 * Clears cached transients for a given podcast index or all podcasts.
+	 *
+	 * @param int|null $podcast_i Podcast index, or null to clear all.
+	 */
+	public static function clear_cache( ?int $podcast_i = null ): void {
+		$days = [ '1d', '7d', '30d' ];
+
+		if ( null === $podcast_i ) {
+			foreach ( array_keys( op3pa_get_podcasts() ) as $i ) {
+				foreach ( $days as $d ) {
+					delete_transient( 'op3pa_downloads_' . $i . '_' . $d );
+				}
+			}
+		} else {
+			foreach ( $days as $d ) {
+				delete_transient( 'op3pa_downloads_' . $podcast_i . '_' . $d );
+			}
+		}
+
+		global $wpdb;
+		$wpdb->query(
+			$wpdb->prepare(
+				"DELETE FROM {$wpdb->options} WHERE option_name LIKE %s",
+				$wpdb->esc_like( '_transient_op3pa_network_' ) . '%'
+			)
+		);
+	}
+
+	// -------------------------------------------------------------------------
+	// Private helpers
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Aggregates raw OP3 download rows by episode URL.
+	 *
+	 * @param array $raw_rows Raw rows from OP3 API.
+	 * @return array Normalised array with 'rows' key.
+	 */
+	private static function normalise_rows( array $raw_rows ): array {
 		$by_episode = [];
-		foreach ( $response['rows'] ?? [] as $row ) {
+		foreach ( $raw_rows as $row ) {
 			$url_key = $row['url'] ?? '';
 			if ( ! $url_key ) {
 				continue;
@@ -72,63 +183,17 @@ class OP3PA_Api {
 
 		$rows = array_values( $by_episode );
 		usort( $rows, fn( $a, $b ) => $b['downloads'] <=> $a['downloads'] );
-
-		$normalised = [ 'rows' => $rows ];
-		set_transient( $cache_key, $normalised, self::CACHE_TTL );
-		return $normalised;
-	}
-
-	/**
-	 * Fetches show info + episode list.
-	 *
-	 * @param int $podcast_i Podcast index.
-	 * @return array|WP_Error
-	 */
-	public static function get_show( int $podcast_i = 0 ): array|WP_Error {
-		$podcast = op3pa_get_podcast( $podcast_i );
-		if ( empty( $podcast['show_uuid'] ) ) {
-			return new WP_Error( 'op3pa_no_uuid', __( 'No Show UUID configured.', 'podcast-analytics-for-op3' ) );
-		}
-
-		$cache_key = 'op3pa_show_' . $podcast_i;
-		$cached    = get_transient( $cache_key );
-		if ( false !== $cached ) {
-			return $cached;
-		}
-
-		$url      = self::API_BASE . 'shows/' . rawurlencode( $podcast['show_uuid'] ) . '?episodes=include';
-		$response = self::request( $url, $podcast );
-		if ( is_wp_error( $response ) ) {
-			return $response;
-		}
-
-		set_transient( $cache_key, $response, self::CACHE_TTL );
-		return $response;
-	}
-
-	/**
-	 * Returns the OP3 public stats page URL for the configured show.
-	 *
-	 * @param int $podcast_i Podcast index.
-	 * @return string
-	 */
-	public static function get_stats_page_url( int $podcast_i = 0 ): string {
-		$podcast = op3pa_get_podcast( $podcast_i );
-		if ( empty( $podcast['show_uuid'] ) ) {
-			return 'https://op3.dev';
-		}
-		return 'https://op3.dev/show/' . rawurlencode( $podcast['show_uuid'] );
+		return [ 'rows' => $rows ];
 	}
 
 	/**
 	 * Makes an authenticated GET request to the OP3 API.
 	 *
-	 * @param string $url     Full URL.
-	 * @param array  $podcast Podcast settings array (needs 'api_key').
+	 * @param string $url Full URL.
 	 * @return array|WP_Error
 	 */
-	private static function request( string $url, array $podcast ): array|WP_Error {
-		$token = ! empty( $podcast['api_key'] ) ? $podcast['api_key'] : '';
+	private static function request( string $url ): array|WP_Error {
+		$token = op3pa_get_token();
 
 		$response = wp_remote_get(
 			$url,
@@ -152,11 +217,9 @@ class OP3PA_Api {
 		if ( 401 === $code ) {
 			return new WP_Error( 'op3pa_unauthorized', __( 'Invalid bearer token. Check your OP3 settings.', 'podcast-analytics-for-op3' ) );
 		}
-
 		if ( 404 === $code ) {
 			return new WP_Error( 'op3pa_not_found', __( 'Show not found. Check your Show UUID.', 'podcast-analytics-for-op3' ) );
 		}
-
 		if ( $code < 200 || $code >= 300 ) {
 			return new WP_Error(
 				'op3pa_api_error',
@@ -171,17 +234,5 @@ class OP3PA_Api {
 		}
 
 		return $data;
-	}
-
-	/**
-	 * Clears all cached transients for a given podcast index.
-	 *
-	 * @param int $podcast_i Podcast index.
-	 */
-	public static function clear_cache( int $podcast_i = 0 ): void {
-		delete_transient( 'op3pa_downloads_' . $podcast_i . '_1d' );
-		delete_transient( 'op3pa_downloads_' . $podcast_i . '_7d' );
-		delete_transient( 'op3pa_downloads_' . $podcast_i . '_30d' );
-		delete_transient( 'op3pa_show_' . $podcast_i );
 	}
 }
