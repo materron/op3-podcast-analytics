@@ -1,0 +1,83 @@
+/* Podcast Analytics for OP3 — Admin Styles v2.0 */
+
+/* ── Wrap ─────────────────────────────────────────── */
+.op3pa-wrap { max-width: 960px; }
+.op3pa-wrap h1 { display: flex; align-items: center; gap: 10px; }
+.op3pa-logo { display: inline-flex; align-items: center; justify-content: center; background: #0066cc; color: #fff; font-weight: 800; font-size: 13px; letter-spacing: 0.05em; padding: 3px 8px; border-radius: 4px; }
+
+/* ── Settings — podcasts table ───────────────────── */
+.op3pa-podcasts-table th, .op3pa-podcasts-table td { vertical-align: middle; }
+.op3pa-podcasts-table .col-color   { width: 60px; text-align: center; }
+.op3pa-podcasts-table .col-private { width: 70px; text-align: center; }
+.op3pa-podcasts-table .col-remove  { width: 40px; text-align: center; }
+.op3pa-podcasts-table input[type="color"] { width: 40px; height: 28px; padding: 2px; border: 1px solid #c3c4c7; border-radius: 4px; cursor: pointer; }
+.op3pa-remove-row { color: #d63638; font-size: 16px; cursor: pointer; }
+.op3pa-remove-row:hover { color: #a00; }
+
+/* ── Stats header ─────────────────────────────────── */
+.op3pa-stats-header { display: flex; align-items: center; gap: 10px; margin: 16px 0 20px; flex-wrap: wrap; }
+.op3pa-podcast-selector { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-right: 12px; }
+.op3pa-selector-item { display: flex; align-items: center; gap: 4px; font-size: 13px; cursor: pointer; }
+.op3pa-period-tabs { display: flex; gap: 4px; }
+.op3pa-period-btn { background: #f6f7f7; border: 1px solid #c3c4c7; border-radius: 4px; padding: 5px 12px; cursor: pointer; font-size: 13px; color: #2c3338; transition: background 0.15s; }
+.op3pa-period-btn:hover { background: #e0e0e0; }
+.op3pa-period-btn.active { background: #0066cc; border-color: #0066cc; color: #fff; }
+
+/* ── Network header ───────────────────────────────── */
+.op3pa-network-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 12px 0 16px; border-bottom: 1px solid #dcdcde; margin-bottom: 16px; }
+.op3pa-network-total { display: flex; align-items: baseline; gap: 8px; }
+.op3pa-net-number { font-size: 36px; font-weight: 700; color: #0066cc; line-height: 1; }
+.op3pa-net-label  { color: #646970; font-size: 15px; }
+.op3pa-network-links { display: flex; gap: 8px; flex-wrap: wrap; }
+.op3pa-network-link { font-size: 13px; color: #0066cc; text-decoration: none; border: 1px solid #b8d0ef; border-radius: 4px; padding: 3px 8px; }
+.op3pa-network-link:hover { background: #e8f0fb; }
+
+/* ── Show heading ─────────────────────────────────── */
+.op3pa-show-heading { font-size: 15px; margin: 20px 0 8px; display: flex; align-items: center; gap: 8px; }
+.op3pa-show-op3-link { font-size: 12px; font-weight: 400; color: #0066cc; }
+
+/* ── Stats table ──────────────────────────────────── */
+.op3pa-table .column-podcast-tag { width: 110px; }
+.op3pa-table .column-episode    { width: 50%; }
+.op3pa-table .column-pubdate    { width: 100px; color: #646970; font-size: 12px; }
+.op3pa-table .column-downloads  { width: 25%; }
+.op3pa-network-table .column-podcast { width: 50%; }
+.op3pa-table .column-downloads strong { display: block; font-size: 14px; }
+.op3pa-bar { height: 4px; background: #0066cc; border-radius: 2px; margin-top: 4px; min-width: 2px; transition: width 0.4s ease; }
+.op3pa-podcast-tag { display: inline-block; font-size: 11px; border-radius: 3px; padding: 2px 6px; white-space: nowrap; font-weight: 600; }
+.op3pa-cache-note { color: #646970; font-size: 12px; margin-top: 8px; }
+.op3pa-loading { padding: 20px 0; color: #646970; font-style: italic; }
+
+/* ── Dashboard widget ─────────────────────────────── */
+.op3pa-widget { font-size: 13px; }
+.op3pa-widget-total { display: flex; align-items: baseline; gap: 8px; padding: 10px 0; border-bottom: 1px solid #dcdcde; margin-bottom: 10px; }
+.op3pa-widget-number { font-size: 28px; font-weight: 700; color: #0066cc; line-height: 1; }
+.op3pa-widget-label  { color: #646970; }
+.op3pa-slide-title { font-weight: 600; margin: 0 0 6px; color: #1d2327; }
+.op3pa-widget-table { width: 100%; border-collapse: collapse; }
+.op3pa-widget-table tr { border-bottom: 1px solid #f0f0f0; }
+.op3pa-widget-table td { padding: 5px 0; vertical-align: middle; }
+.op3pa-wt-title { color: #2c3338; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.op3pa-wt-count { text-align: right; font-weight: 600; color: #0066cc; white-space: nowrap; }
+
+/* Widget pagination */
+.op3pa-widget-nav { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 10px 0 6px; }
+.op3pa-nav-prev, .op3pa-nav-next { font-size: 18px; cursor: pointer; color: #0066cc; background: none; border: none; padding: 0 4px; line-height: 1; }
+.op3pa-nav-prev:hover, .op3pa-nav-next:hover { color: #004499; }
+.op3pa-nav-dots { display: flex; gap: 5px; align-items: center; }
+.op3pa-nav-dot { width: 7px; height: 7px; border-radius: 50%; background: #c3c4c7; }
+.op3pa-nav-dot.active { background: #0066cc; }
+
+.op3pa-widget-footer { margin-top: 10px; padding-top: 8px; border-top: 1px solid #dcdcde; font-size: 12px; }
+.op3pa-widget-footer a { color: #0066cc; text-decoration: none; }
+.op3pa-widget-footer a:hover { text-decoration: underline; }
+.op3pa-error { color: #d63638; }
+
+/* ── Print styles ─────────────────────────────────── */
+@media print {
+	#adminmenuwrap, #adminmenuback, #wpadminbar, #wpfooter,
+	.op3pa-stats-header, .no-print { display: none !important; }
+	.op3pa-wrap { max-width: 100%; }
+	.op3pa-bar { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+	a[href]::after { content: none !important; }
+}
